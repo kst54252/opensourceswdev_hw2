@@ -1,5 +1,6 @@
 import os
 import urllib.request
+import base64
 from fastapi import FastAPI, File, UploadFile
 from fastapi.responses import Response
 import cv2
@@ -83,6 +84,47 @@ async def predict_pose(file: UploadFile = File(...)):
         return {"error": "Failed to encode the processed image."}
         
     return Response(content=encoded_image.tobytes(), media_type="image/jpeg")
+
+@app.post("/predict_full")
+async def predict_pose_full(file: UploadFile = File(...)):
+    contents = await file.read()
+    nparr = np.frombuffer(contents, np.uint8)
+    image = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+    
+    if image is None:
+        return {"error": "Invalid image file."}
+
+    image_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+    mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=image_rgb)
+    detection_result = detector.detect(mp_image)
+    
+    if detection_result.pose_landmarks:
+        height, width, _ = image.shape
+        for pose_landmarks in detection_result.pose_landmarks:
+            if mp_pose.POSE_CONNECTIONS:
+                for connection in mp_pose.POSE_CONNECTIONS:
+                    start_idx, end_idx = connection[0], connection[1]
+                    start_lm, end_lm = pose_landmarks[start_idx], pose_landmarks[end_idx]
+                    start_point = (int(start_lm.x * width), int(start_lm.y * height))
+                    end_point = (int(end_lm.x * width), int(end_lm.y * height))
+                    cv2.line(image, start_point, end_point, (245, 117, 66), 2)
+            
+            for landmark in pose_landmarks:
+                point = (int(landmark.x * width), int(landmark.y * height))
+                cv2.circle(image, point, 2, (245, 66, 230), -1)
+                
+    success, encoded_image = cv2.imencode('.jpg', image)
+    if not success:
+        return {"error": "Failed to encode the processed image."}
+        
+    b64_image = base64.b64encode(encoded_image).decode('utf-8')
+    
+    world_landmarks = []
+    if detection_result.pose_world_landmarks:
+        for lm in detection_result.pose_world_landmarks[0]:  # 추출한 첫 번째 사람의 3D 좌표만 가져옴
+            world_landmarks.append({"x": lm.x, "y": lm.y, "z": lm.z})
+            
+    return {"image_base64": b64_image, "world_landmarks": world_landmarks}
 
 @app.get("/")
 def read_root():
