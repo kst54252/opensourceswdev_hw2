@@ -44,7 +44,7 @@ if uploaded_file is not None:
                                 # 축 매핑 (MediaPipe World Landmarks는 x, y, z로 주어짐)
                                 # Plotly의 3D 공간에 사람이 서있는 형태로 자연스럽게 매핑하기 위해 축을 회전합니다.
                                 x = [lm["x"] for lm in landmarks]
-                                y = [-lm["y"] for lm in landmarks]  # Y축 반전 (사람이 거꾸로 서지 않도록)
+                                y = [-lm["y"] for lm in landmarks]  # Y축 반전
                                 z = [lm["z"] for lm in landmarks]
                                 
                                 fig = go.Figure()
