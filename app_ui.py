@@ -3,6 +3,8 @@ import requests
 import base64
 import plotly.graph_objects as go
 import mediapipe as mp
+from PIL import Image
+import io
 
 # 페이지 기본 설정
 st.set_page_config(layout="wide", page_title="Human Pose 3D Estimation")
@@ -38,7 +40,7 @@ if uploaded_file is not None:
                         
                         # 2. 3D Skeleton UI Display using Plotly
                         with col2:
-                            st.subheader("🌐 3D 스켈레톤 모델 (Plotly)")
+                            st.subheader("🌐 3D 스켈레톤 모델")
                             landmarks = data.get("world_landmarks", [])
                             if landmarks:
                                 # 축 매핑 (MediaPipe World Landmarks는 x, y, z로 주어짐)
@@ -79,6 +81,14 @@ if uploaded_file is not None:
                                 ))
                                 
                                 # 레이아웃 설정 (축 비율 맞추기)
+                                # 원본 이미지의 비율(가로세로 비율)을 구해 3D 그래프의 높이를 그림과 동일하게 맞춤
+                                img = Image.open(io.BytesIO(uploaded_file.getvalue()))
+                                img_w, img_h = img.size
+                                aspect_ratio = img_h / img_w
+                                
+                                # Streamlit 레이아웃의 컬럼 대략적 너비(약 500px)를 기준으로 높이를 동적 산출
+                                estimated_height = int(500 * aspect_ratio)
+
                                 fig.update_layout(
                                     scene=dict(
                                         xaxis=dict(title="X (좌우)", showticklabels=False),
@@ -87,7 +97,7 @@ if uploaded_file is not None:
                                         aspectmode='data'
                                     ),
                                     margin=dict(l=0, r=0, b=0, t=0),
-                                    height=500
+                                    height=estimated_height
                                 )
                                 
                                 st.plotly_chart(fig, use_container_width=True)
